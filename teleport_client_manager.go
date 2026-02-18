@@ -1,4 +1,4 @@
-// teleport.go
+// teleport_client_manager.go
 package main
 
 import (
