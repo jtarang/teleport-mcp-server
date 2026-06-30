@@ -50,3 +50,42 @@ type RoleListResult struct {
 
 // ListRolesInput is an empty placeholder struct
 type ListRolesInput struct{}
+
+// ListDatabasesInput is an empty placeholder struct.
+type ListDatabasesInput struct{}
+
+// DatabaseInfo describes a single database registered in the Teleport cluster.
+type DatabaseInfo struct {
+	Name        string `json:"name"`
+	Protocol    string `json:"protocol"`
+	URI         string `json:"uri"`
+	Description string `json:"description"`
+}
+
+// DatabaseListResult defines the structure returned by the listDatabases handler.
+type DatabaseListResult struct {
+	Databases []DatabaseInfo `json:"databases"`
+	Count     int            `json:"count"`
+}
+
+// QueryDatabaseInput defines the parameters for running a SQL query through
+// Teleport. Traffic is routed via a short-lived `tsh proxy db --tunnel`
+// listener, so the caller must already be logged in (tsh login).
+type QueryDatabaseInput struct {
+	// Database is the Teleport database resource name (see listDatabases).
+	Database string `json:"database"`
+	// DBUser is the database account to authenticate as (e.g. "postgres").
+	DBUser string `json:"db_user"`
+	// DBName is the logical database/schema to connect to.
+	DBName string `json:"db_name"`
+	// Query is the SQL statement to execute.
+	Query string `json:"query"`
+}
+
+// QueryDatabaseOutput defines the structured result of a SQL query.
+type QueryDatabaseOutput struct {
+	Columns  []string   `json:"columns"`
+	Rows     [][]string `json:"rows"`
+	RowCount int        `json:"row_count"`
+	Message  string     `json:"message"`
+}

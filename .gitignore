@@ -1,4 +1,5 @@
 # Binaries
+/teleport-mcp-server
 *.exe
 *.exe~
 *.dll

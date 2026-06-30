@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gravitational/trace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -29,6 +30,52 @@ func MakeListTeleportRoles(tcm *TeleportClientManager) func(ctx context.Context,
 		}
 
 		return nil, roleList, nil
+	}
+}
+
+// MakeListDatabases is a factory function that returns the listDatabases handler.
+func MakeListDatabases(tcm *TeleportClientManager) func(ctx context.Context, req *mcp.CallToolRequest, input ListDatabasesInput) (*mcp.CallToolResult, DatabaseListResult, error) {
+
+	return func(ctx context.Context, req *mcp.CallToolRequest, input ListDatabasesInput) (*mcp.CallToolResult, DatabaseListResult, error) {
+		log.Println("Invoking ListDatabases")
+
+		dbs, err := tcm.ListDatabases(ctx)
+		if err != nil {
+			log.Printf("⚠️ Warning: Could not list databases: %v", err)
+			return nil, DatabaseListResult{}, trace.Wrap(err, "failed to list databases")
+		}
+
+		log.Printf("📝 Current database count: %d.", len(dbs))
+		return nil, DatabaseListResult{Databases: dbs, Count: len(dbs)}, nil
+	}
+}
+
+// MakeQueryDatabase is a factory function that returns the queryDatabase handler.
+func MakeQueryDatabase(tcm *TeleportClientManager) func(ctx context.Context, req *mcp.CallToolRequest, input QueryDatabaseInput) (*mcp.CallToolResult, QueryDatabaseOutput, error) {
+
+	return func(ctx context.Context, req *mcp.CallToolRequest, input QueryDatabaseInput) (*mcp.CallToolResult, QueryDatabaseOutput, error) {
+		// Fall back to environment defaults so the server can be preconfigured
+		// for a specific database (e.g. via the desktop app's "env" block) and
+		// callers only need to supply a query.
+		if input.Database == "" {
+			input.Database = os.Getenv("TELEPORT_DB")
+		}
+		if input.DBUser == "" {
+			input.DBUser = os.Getenv("TELEPORT_DB_USER")
+		}
+		if input.DBName == "" {
+			input.DBName = os.Getenv("TELEPORT_DB_NAME")
+		}
+
+		log.Printf("Invoking QueryDatabase against %q as %q", input.Database, input.DBUser)
+
+		out, err := tcm.QueryDatabase(ctx, input)
+		if err != nil {
+			log.Printf("❌ Query against %q failed: %v", input.Database, err)
+			return nil, QueryDatabaseOutput{}, trace.Wrap(err, "failed to query database")
+		}
+
+		return nil, *out, nil
 	}
 }
 
