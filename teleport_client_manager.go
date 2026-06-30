@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gravitational/teleport/api/client"
 	"github.com/gravitational/teleport/api/client/proto"
+	apidefaults "github.com/gravitational/teleport/api/defaults"
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/trace"
 )
@@ -95,6 +96,38 @@ func (tcm *TeleportClientManager) ListRoles(ctx context.Context) ([]string, erro
 	}
 	log.Printf(" Fetched all Roles successfully.")
 	return names, nil
+}
+
+// ListDatabases returns the databases currently registered in the cluster.
+//
+// This is a control-plane call over the gRPC API: it tells you which databases
+// exist and how they're configured, but it does NOT open a connection to them.
+// Use QueryDatabase to actually run SQL.
+func (tcm *TeleportClientManager) ListDatabases(ctx context.Context) ([]DatabaseInfo, error) {
+	servers, err := tcm.Client.GetDatabaseServers(ctx, apidefaults.Namespace)
+	if err != nil {
+		return nil, trace.Wrap(err, "failed to list database servers")
+	}
+
+	// A database can be served by multiple agents (HA), so de-duplicate by name.
+	seen := make(map[string]struct{})
+	var dbs []DatabaseInfo
+	for _, s := range servers {
+		db := s.GetDatabase()
+		if _, ok := seen[db.GetName()]; ok {
+			continue
+		}
+		seen[db.GetName()] = struct{}{}
+		dbs = append(dbs, DatabaseInfo{
+			Name:        db.GetName(),
+			Protocol:    db.GetProtocol(),
+			URI:         db.GetURI(),
+			Description: db.GetDescription(),
+		})
+	}
+
+	log.Printf(" Fetched %d database(s) successfully.", len(dbs))
+	return dbs, nil
 }
 
 // CreateAccessRequest is a method on TeleportClientManager to submit a new access request.
